@@ -1,15 +1,16 @@
+require 'pry'
 
 module Design
   
-  def long_line
+  def display_long_line
     puts "____________________________________" 
   end
 
-  def short_line
+  def display_short_line
     puts "----------"
   end
 
-  def arrow message
+  def puts_with_arrow message
     puts "=> #{message}"
   end
 
@@ -33,23 +34,22 @@ module CardValue
     end
 
     if arr.any? { |card| card.include?("Ace") }
-      total -= 10 if total > Deck::BLACKJACK
+      arr.each do |card|
+        total -= 10 if total > Game::BLACKJACK && card.include?("Ace")
+      end
     end
     total
   end
 
   def show_next_card(player)
     system 'clear'
-    arrow "#{player.name} was dealt a #{player.hand.last[0]} of #{player.hand.last[1]}"
+    puts_with_arrow "#{player.name} was dealt a #{player.hand.last[0]} of #{player.hand.last[1]}"
   end
 
 end
 
 
 class Deck
-
-  BLACKJACK = 21
-  DEALER_MUST_HIT = 17
 
   attr_accessor :current_deck
 
@@ -82,26 +82,24 @@ class Player
   end
 
   def show_hand
-    long_line
+    display_long_line
     puts "#{@name} has the following cards:"
-    @hand.each { |card| arrow "The #{card[0]} of #{card[1]}" }
-    short_line
+    @hand.each { |card| puts_with_arrow "The #{card[0]} of #{card[1]}" }
+    display_short_line
     puts "Total: #{calculate_total(@hand)}"
-    short_line
+    display_short_line
   end
 
   def bust?
-    return true if calculate_total(@hand) > Deck::BLACKJACK
+    return true if calculate_total(@hand) > Game::BLACKJACK
   end
 
   def blackjack?
-    return true if calculate_total(@hand) == Deck::BLACKJACK
+    return true if calculate_total(@hand) == Game::BLACKJACK
   end
 end
 
 class Dealer < Player
-
-  include Design
 
   attr_accessor :hand
   attr_reader :name
@@ -123,26 +121,29 @@ class Dealer < Player
 
   def show_one_card
     system 'clear'
-    long_line
+    display_long_line
     puts "The Dealer is showing the #{@hand[0][0]} of #{@hand[0][1]}"
-    short_line
+    display_short_line
     puts "Total: #{calculate_one_card_total}"
-    short_line
+    display_short_line
   end
 
   def flip_second_card
     system 'clear'
-    long_line
+    display_long_line
     puts "The Dealer flipped a #{@hand[1][0]} of #{@hand[1][1]}"
   end
 
   def must_hit?
-    return true if calculate_total(@hand) < Deck::DEALER_MUST_HIT
+    return true if calculate_total(@hand) < Game::DEALER_MUST_HIT
   end
 
 end
 
 class Game
+
+  BLACKJACK = 21
+  DEALER_MUST_HIT = 17
 
   include Design
   include CardValue
@@ -165,11 +166,11 @@ class Game
 
   def hit_or_stay(player)
     begin
-    choice = nil
-    until choice == 'stay' || choice == 'hit'
-      puts "What would you like to do: 'hit' or 'stay'?"
-      choice = gets.chomp.downcase
-    end 
+      choice = nil
+      until choice == 'stay' || choice == 'hit'
+        puts "What would you like to do: 'hit' or 'stay'?"
+        choice = gets.chomp.downcase
+      end 
 
       if choice == 'hit'
         @deck.deal_card(player)
@@ -188,20 +189,22 @@ class Game
       puts "#{player.name} busts!"
       if player.name == 'Dealer'
         winner('player')
+        display_long_line
       else
         winner('Dealer')
+        display_long_line
       end
-      end_game
+      replay_or_end
     elsif player.blackjack?
       puts "#{player.name} has Blackjack!!"
       if player.name == 'Dealer'
         winner('Dealer')
-        long_line
+        display_long_line
       else
         winner('player')
-        long_line
+        display_long_line
       end
-      end_game
+      replay_or_end
     end
   end
 
@@ -209,19 +212,19 @@ class Game
     if @player1.calculate_total(@player1.hand) > @dealer.calculate_total(@dealer.hand)
       puts "#{@player1.name}'s cards are better"
       winner('player')
-      long_line
+      display_long_line
     else
       puts "Dealer's cards are better"
       winner('Dealer')
-      long_line
+      display_long_line
     end
   end
 
-  def end_game
+  def replay_or_end
     puts "Would you like to play again? 'y'/'n'"
     answer = gets.chomp.downcase
     if answer == 'y'
-      game = Game.new.play
+      Game.new.play
     else
       exit
     end
@@ -231,13 +234,13 @@ class Game
     @deck.shuffle
     
     begin
-    @deck.deal_card(@player1)
-    @deck.deal_card(@dealer) 
+      @deck.deal_card(@player1)
+      @deck.deal_card(@dealer) 
     end until @player1.hand.count == 2 && @dealer.hand.count == 2
  
     @dealer.show_one_card
     @player1.show_hand
-    
+
     check_bust_or_blackjack(@player1)
 
     hit_or_stay(@player1)
@@ -247,21 +250,19 @@ class Game
     check_bust_or_blackjack(@dealer)
     sleep 3
 
-    begin
-      if @dealer.must_hit?
-        puts "Dealer hits"
-        @deck.deal_card(@dealer)
-        @dealer.show_hand
-        check_bust_or_blackjack(@dealer)
-        sleep 3
-      end
-    end while @dealer.must_hit?
+    while @dealer.must_hit?
+      puts "Dealer hits"
+      @deck.deal_card(@dealer)
+      @dealer.show_hand
+      check_bust_or_blackjack(@dealer)
+      sleep 3
+    end
 
     compare_cards
-    end_game
+    replay_or_end
   end
 end
 
-game = Game.new.play
+Game.new.play
 
 
